@@ -2,13 +2,13 @@ package com.epicdrops;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import javax.inject.Inject;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,7 +18,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 public class DropDataService
 {
@@ -43,12 +42,13 @@ public class DropDataService
                 return thread;
             });
 
-    private final OkHttpClient httpClient =
-            new OkHttpClient.Builder()
-                    .connectTimeout(10, TimeUnit.SECONDS)
-                    .readTimeout(15, TimeUnit.SECONDS)
-                    .callTimeout(15, TimeUnit.SECONDS)
-                    .build();
+    private final OkHttpClient httpClient;
+
+    @Inject
+    public DropDataService(OkHttpClient httpClient)
+    {
+        this.httpClient = httpClient;
+    }
 
     public List<String> getDrops(int npcId, String npcName)
     {
@@ -360,7 +360,5 @@ public class DropDataService
     public void shutdown()
     {
         executor.shutdownNow();
-        httpClient.dispatcher().executorService().shutdown();
-        httpClient.connectionPool().evictAll();
     }
 }

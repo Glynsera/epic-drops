@@ -2,7 +2,6 @@ package com.epicdrops;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-
 import net.runelite.api.events.ClientTick;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -33,12 +32,6 @@ public class EpicDropsPlugin extends Plugin
     EpicDropsConfig provideConfig(ConfigManager manager)
     {
         return manager.getConfig(EpicDropsConfig.class);
-    }
-
-    @Provides
-    DropDataService provideDropDataService()
-    {
-        return new DropDataService();
     }
 
     @Override
