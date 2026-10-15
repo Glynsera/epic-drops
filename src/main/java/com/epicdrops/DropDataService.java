@@ -143,8 +143,8 @@ public class DropDataService
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("User-Agent",
-                        "NpcDropInspector/0.1 "
-                                + "(RuneLite community development)")
+                        "EpicDrops/1.0 "
+                                + "(https://github.com/Glynsera/epic-drops)")
                 .timeout(Duration.ofSeconds(15))
                 .GET()
                 .build();
@@ -356,3 +356,4 @@ public class DropDataService
         executor.shutdownNow();
     }
 }
+
