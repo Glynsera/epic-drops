@@ -1,14 +1,12 @@
-
 package com.epicdrops;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -20,6 +18,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class DropDataService
 {
@@ -44,9 +43,11 @@ public class DropDataService
                 return thread;
             });
 
-    private final HttpClient httpClient =
-            HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
+    private final OkHttpClient httpClient =
+            new OkHttpClient.Builder()
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(15, TimeUnit.SECONDS)
+                    .callTimeout(15, TimeUnit.SECONDS)
                     .build();
 
     public List<String> getDrops(int npcId, String npcName)
@@ -118,7 +119,7 @@ public class DropDataService
                     key, System.currentTimeMillis() + 60000L);
 
             System.err.println(
-                    "[NPC Drop Inspector] Wiki error for "
+                    "[Epic Drops] Wiki error for "
                             + npcName + ": " + exception);
         }
         finally
@@ -140,39 +141,44 @@ public class DropDataService
                         + "&format=json"
                         + "&formatversion=2";
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+        Request request = new Request.Builder()
+                .url(url)
                 .header("User-Agent",
                         "EpicDrops/1.0 "
                                 + "(https://github.com/Glynsera/epic-drops)")
-                .timeout(Duration.ofSeconds(15))
-                .GET()
+                .get()
                 .build();
 
-        HttpResponse<String> response = httpClient.send(
-                request,
-                HttpResponse.BodyHandlers.ofString()
-        );
-
-        if (response.statusCode() != 200)
+        try (Response response =
+                     httpClient.newCall(request).execute())
         {
-            throw new IllegalStateException(
-                    "HTTP " + response.statusCode());
+            if (!response.isSuccessful())
+            {
+                throw new IllegalStateException(
+                        "HTTP " + response.code());
+            }
+
+            if (response.body() == null)
+            {
+                throw new IllegalStateException(
+                        "Empty Wiki response");
+            }
+
+            String responseBody = response.body().string();
+
+            JsonObject json = new JsonParser()
+                    .parse(responseBody)
+                    .getAsJsonObject();
+
+            if (json.has("error"))
+            {
+                throw new IllegalStateException(
+                        json.get("error").toString());
+            }
+
+            return json.getAsJsonObject("parse")
+                    .get("wikitext").getAsString();
         }
-
-        // Compatible with older Gson versions
-        JsonObject json = new JsonParser()
-                .parse(response.body())
-                .getAsJsonObject();
-
-        if (json.has("error"))
-        {
-            throw new IllegalStateException(
-                    json.get("error").toString());
-        }
-
-        return json.getAsJsonObject("parse")
-                .get("wikitext").getAsString();
     }
 
     private List<String> parseDrops(String wikiText)
@@ -354,6 +360,7 @@ public class DropDataService
     public void shutdown()
     {
         executor.shutdownNow();
+        httpClient.dispatcher().executorService().shutdown();
+        httpClient.connectionPool().evictAll();
     }
 }
-
